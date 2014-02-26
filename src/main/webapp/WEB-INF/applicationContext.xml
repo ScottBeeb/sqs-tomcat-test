@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:camel="http://camel.apache.org/schema/spring"
+    xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+    ">
+	
+	<bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="ignoreUnresolvablePlaceholders" value="false" />
+		<property name="searchSystemEnvironment" value="true" />
+		<property name="locations">
+			<list>
+				<value>classpath:config/environment.properties</value>
+			</list>
+		</property>
+	</bean>
+	
+	<bean name="sqsClientFactory" class="com.bbc.scott.AmazonSQSClientFactory">
+		<property name="proxyHost" value="${aws.proxyHost}"/>
+		<property name="proxyPort" value="${aws.proxyPort}"/>
+	</bean>
+
+	<bean name="notificationSQSClient" factory-bean="sqsClientFactory" factory-method="createSQSClient">
+		<constructor-arg name="endpoint" value="${aws.sqs.endpoint}"/>
+	</bean>
+	
+	
+
+	<camelContext xmlns="http://camel.apache.org/schema/spring">
+		<endpoint id="notificationQueue" uri="aws-sqs://${notification.queue_name}?amazonSQSClient=#notificationSQSClient"/>
+		
+		<route>
+			<from ref="notificationQueue" />
+			<convertBodyTo type="java.lang.String" />
+			<log message="\n\nGot message from SQS:\n"/>
+			<to uri="stream:out" />
+		</route>
+
+	</camelContext>
+
+</beans>
